@@ -1,0 +1,15 @@
+# proxy server (this host)
+local_host			= 
+
+# Growatt WiFi module version
+gwversion 			= 3	
+
+# Connection parameters for PV Output upload
+PVOUTPUTAPIKEY		= 
+PVOUTPUTSID			= 
+
+# Connection parameters for Domoticz upload
+DOMOTICZ_HOST		= 
+DOMOTICZ_PORT		= 
+DOMOTICZ_IDXENERGY	= 
+DOMOTICZ_IDXVOLTAGE	= 
