@@ -25,13 +25,22 @@ my ($my_name, $my_version) = qw( growatt_data 0.07 );
 require "growatt_lib.pl";
 
 ################ Read property file ################
+our $configfile;
 
-if(open my $fh, '<', '/growatt-proxy/config.properties') {
+if(open my $fh, '<', $configfile) {
 	$props->load($fh);
     close $fh;
 } else {
-    print "No properties file found at /growatt-proxy/config.properties\n";
+    print "No properties file found at $configfile \n";
+    print "Upload will not be performed \n";
 } 
+
+# if(open my $fh, '<', '/config/config.properties') {
+	# $props->load($fh);
+    # close $fh;
+# } else {
+    # print "No properties file found at /config/config.properties\n";
+# } 
 
 my $gwversion = $props->getProperty('gwversion', 3);
 

@@ -60,33 +60,16 @@ use strict;
 
 ################ Common stuff ################
 
-use strict;
-
 # Package name.
 my $my_package = 'Growatt WiFi Tools';
 # Program name and version.
 my ($my_name, $my_version) = qw( growatt_server 0.60 );
 
-# This should be replaced by module functions
-require "growatt_uploads.pl";
-
-################ Command line parameters ################
-
 use Getopt::Long 2.13;
 use Config::Properties;
 my $props = Config::Properties->new();
 
-if(open my $fh, '<', '/growatt-proxy/config.properties') {
-	$props->load($fh);
-    close $fh;
-} else {
-    print "No properties file found at /growatt-proxy/config.properties\n";
-    print "Be sure to specify the right local_host in growatt_server.pl\n";
-} 
-
-# proxy server (this host)
-# If you don't use a property file, be sure to replace 192.168.2.1 by your value
-my $local_host = $props->getProperty('local_host', '192.168.2.1');
+################ Command line parameters ################
 
 # Command line options.
 my $local_port  = 5279;		# local port. DO NOT CHANGE
@@ -98,6 +81,7 @@ my $verbose = 0;			# verbose processing
 my $sock_act = 0;			# running through inetd or systemd
 my $logdir;					# where to put the logfile
 my $datadir;				# where to put the data packages
+our $configfile;			# location of the config file (if used)
 my $multi;					# for multiple inverters
 
 # Development options (not shown with -help).
@@ -106,6 +90,22 @@ my $trace = 0;				# trace (show process)
 
 # Process command line options.
 app_options();
+$configfile =~ s/\/+$//;
+
+# proxy server (this host)
+# If you don't use a property file, be sure to replace 192.168.2.1 by your value
+my $local_host = $props->getProperty('local_host', '192.168.2.1');
+
+if(open my $fh, '<', $configfile) {
+	$props->load($fh);
+    close $fh;
+} else {
+    print "No properties file found at $configfile \n";
+    print "Be sure to specify the right local_host in growatt_server.pl\n";
+} 
+
+# This should be replaced by module functions
+require "growatt_uploads.pl";
 
 # Post-processing.
 $timeout //= $sock_act ? 300 : 1800;
@@ -721,6 +721,7 @@ sub app_options {
 		     'datadir=s' => \$datadir,
 		     'multi'	=> \$multi,
 		     'logdir=s'	=> \$logdir,
+		     'configfile=s'	=> \$configfile,
 		     'ident'	=> \$ident,
 		     'verbose'	=> \$verbose,
 		     'trace'	=> \$trace,
@@ -738,8 +739,9 @@ sub app_options {
 	if ( $remote ) {
 		( $remote_host, $remote_port ) = split( /:/, $remote );
 	}
-	$datadir ||= ".";
-	$logdir  ||= ".";
+	$datadir    ||= ".";
+	$logdir     ||= ".";
+	$configfile ||= ".";
 }
 
 sub app_ident {
@@ -757,6 +759,7 @@ Usage: $0 [options]
     --inetd  --systemd	Running from inetd/systemd
     --logdir=XXX	Where to put the logfiles
     --datadir=XXX	Where to put the datafiles
+    --configfile=XXX	Location of the configfile (if used)
     --multi		Prefix logger name to data and logs
     --help		This message
     --ident		Shows identification
