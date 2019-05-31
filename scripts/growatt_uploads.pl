@@ -3,7 +3,7 @@
 # Author          : MrLurch81
 # Created On      : 21-05-2017
 # Last Modified By: MrLurch81
-# Last Modified On: 
+# Last Modified On: 31-05-2019
 # Update Count    : 
 # Status          : 
 
@@ -219,16 +219,23 @@ sub upload_data_mqtt {
 	# send current time if $ts has a problem
 	my @tm = localtime(time);
 	my $date = sprintf( "%04d%02d%02d", 1900 + $tm[5], 1 + $tm[4], $tm[3] );
-	my $time = sprintf( "%02d:%02d", @tm[2,1] );
+	my $time = sprintf( "%02d%02d", @tm[2,1] );
 	
 	# Read the date/time from the measurement timestamp:
 	if ( $ts ne "" ) {
 		$date = substr $ts, 0, 10;
 		$date =~ s/-//g; 				# remove the minus sign
 		$time = substr $ts, 11, 5;
+		$time =~ s/://g; 				# remove the minus sign
 	}
 	
-	my $jsonpayload = "{ date: $date , time: $time , power: $data{Pac} , e_today: $data{E_Today} , e_total: $data{E_Total} }";
+	my $jsonpayload = '{ "date": "' . $date
+				  . '" , "time": "' . $time 
+				  . '" , "power": "' . $data{Pac} 
+				  . '" , "voltage": "' . $data{Vpv1} 
+				  . '" , "e_today": "' . 1000 * $data{E_Today}
+				  . '" , "e_total": "' . 1000 * $data{E_Total}
+				  . '" }';
 	print "Sending json data to MQTT: $jsonpayload\n";
 	print "\n";
 	
