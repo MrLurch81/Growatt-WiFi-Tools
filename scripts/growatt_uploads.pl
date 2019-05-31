@@ -52,11 +52,20 @@ my $DOMOTICZ_PORT = $props->getProperty('DOMOTICZ_PORT', '');
 my $DOMOTICZ_IDXENERGY = $props->getProperty('DOMOTICZ_IDXENERGY', '');
 my $DOMOTICZ_IDXVOLTAGE = $props->getProperty('DOMOTICZ_IDXVOLTAGE', '');
 
+my $MQTT_HOST = $props->getProperty('MQTT_HOST', '');
+my $MQTT_PORT = $props->getProperty('MQTT_PORT', '');
+my $MQTT_USER = $props->getProperty('MQTT_USER', '');
+my $MQTT_PASS = $props->getProperty('MQTT_PASS', '');
+
 my $PVOUTPUT_URL = "http://pvoutput.org/service/r2/addstatus.jsp";
 my $DOMOTICZ_URL = "http://$DOMOTICZ_HOST:$DOMOTICZ_PORT/json.htm";
+my $MQTT_URL = "$MQTT_HOST:$MQTT_PORT";
 
 use URI;
 use LWP::UserAgent;
+
+# MQTT support
+use Net::MQTT::Simple;
 
 sub upload_msg {
 	my ( $ts, $msg ) = @_;
@@ -83,6 +92,17 @@ sub upload_msg {
 		}
 	}
 
+	if ( $MQTT_HOST ne "" && $ts ne "") {
+		# if $ts is empty, request was historical (from growatt_data.pl), so don't do MQTT update
+		eval {
+			upload_data_mqtt($ts, $data);
+			1;
+		} or do {
+			my $e = $@;
+			print("Upload to MQTT went wrong: $e\n");
+		}
+	}
+
 }
 
 sub upload_data_pvoutput {
@@ -102,8 +122,10 @@ sub upload_data_pvoutput {
 	my $url = URI->new($PVOUTPUT_URL);
 	$url->query_form( 'd'  => $date					# Date
 					, 't'  => $time					# Time
-					, 'c1' => "1"					# Cumulative flag
-					, 'v1' => 1000 * $data{E_Total}	# Generated energy (Wh)
+#					, 'c1' => "1"					# Cumulative flag
+#					, 'v1' => 1000 * $data{E_Total}	# Generated energy (Wh)
+					, 'c1' => "0"					# Today energy flag
+					, 'v1' => 1000 * $data{E_Today}	# Generated energy (Wh)
 					, 'v2' => $data{Pac}			# Generated power (W)
 					, 'v6' => $data{Vpv1}			# PV Voltage (V)
 					);
@@ -189,3 +211,45 @@ sub upload_data_domoticz {
 	}
 
 }
+
+sub upload_data_mqtt {
+	my ( $ts, $a ) = @_;
+	my %data = %$a;
+	
+	# send current time if $ts has a problem
+	my @tm = localtime(time);
+	my $date = sprintf( "%04d%02d%02d", 1900 + $tm[5], 1 + $tm[4], $tm[3] );
+	my $time = sprintf( "%02d:%02d", @tm[2,1] );
+	
+	# Read the date/time from the measurement timestamp:
+	if ( $ts ne "" ) {
+		$date = substr $ts, 0, 10;
+		$date =~ s/-//g; 				# remove the minus sign
+		$time = substr $ts, 11, 5;
+	}
+	
+	my $jsonpayload = "{ date: $date , time: $time , power: $data{Pac} , e_today: $data{E_Today} , e_total: $data{E_Total} }";
+	print "Sending json data to MQTT: $jsonpayload\n";
+	print "\n";
+	
+	#############################
+	# Allow unencrypted connection with credentials
+	$ENV{MQTT_SIMPLE_ALLOW_INSECURE_LOGIN} = 1;
+	
+	# Connect to broker
+	my $mqtt = Net::MQTT::Simple->new($MQTT_URL);
+	
+	# Depending if authentication is required, login to the broker
+	if($MQTT_USER and $MQTT_PASS) {
+		$mqtt->login($MQTT_USER, $MQTT_PASS);
+	}
+	
+	# Publish a message with retain flag
+	$mqtt->retain("solar/live/status", $jsonpayload);
+	
+	$mqtt->disconnect();
+	#############################
+}
+
+
+

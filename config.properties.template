@@ -13,3 +13,9 @@ DOMOTICZ_HOST		=
 DOMOTICZ_PORT		= 
 DOMOTICZ_IDXENERGY	= 
 DOMOTICZ_IDXVOLTAGE	= 
+
+# Connection parameters for MQTT upload
+MQTT_HOST			= 
+MQTT_PORT			= 1883
+MQTT_USER			= 
+MQTT_PASS			= 
